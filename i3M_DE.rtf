@@ -1,0 +1,83 @@
+{\rtf1\ansi\ansicpg1251\cocoartf1561\cocoasubrtf600
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 Set dataManagerTables = '','\uc0\u1051 \u1080 \u1089 \u1090 1','Sign','Groups','Jan_18', 'Feb_18';\
+//This block renames script tables from non generated section which conflict with the names of managed tables\
+\
+For each name in $(dataManagerTables) \
+    Let index = 0;\
+    Let currentName = name; \
+    Let tableNumber = TableNumber(name); \
+    Let matches = 0; \
+    Do while not IsNull(tableNumber) or (index > 0 and matches > 0)\
+        index = index + 1; \
+        currentName = name & '-' & index; \
+        tableNumber = TableNumber(currentName) \
+        matches = Match('$(currentName)', $(dataManagerTables));\
+    Loop \
+    If index > 0 then \
+            Rename Table '$(name)' to '$(currentName)'; \
+    EndIf; \
+Next; \
+Set dataManagerTables = ;\
+\
+\
+Unqualify *;\
+\
+[Groups]:\
+LOAD\
+	[Group]\
+ FROM [lib://AttachedFiles/Groups.xlsx]\
+(ooxml, embedded labels, table is Groups);\
+\
+\
+\
+for each file in 'Jan_18','Feb_18'\
+\
+[\uc0\u1051 \u1080 \u1089 \u1090 1]:\
+mapping LOAD\
+	[Konto],\
+	[Group]\
+ FROM [lib://AttachedFiles/Account_groups.xlsx]\
+(ooxml, embedded labels, table is \uc0\u1051 \u1080 \u1089 \u1090 1);\
+\
+[Sign]:\
+mapping LOAD\
+	[Konto],\
+	[Sign]\
+ FROM [lib://AttachedFiles/Account_groups.xlsx]\
+(ooxml, embedded labels, table is Sign);\
+NoConcatenate\
+[$(file)]:\
+LOAD\
+	[Konto],\
+	[Beschriftung],\
+    ApplyMap('\uc0\u1051 \u1080 \u1089 \u1090 1',Konto,Null()) as [Group],\
+    ApplyMap('Sign',Konto,Null()) as [Sign],\
+	[Saldo] as [Salso_$(file)],\
+	[S1],\
+	[H1],\
+    if([H1]='H',1,if([S1]='S',-1,Null())) as indic,\
+    if([H1]='H',1,if([S1]='S',-1,Null()))*ApplyMap('Sign',Konto,Null())*[Saldo] as [value]\
+ FROM [lib://AttachedFiles/$(file).xlsx]\
+(ooxml, embedded labels, table is $(file));\
+\
+[Table_$(file)]:\
+Mapping Load\
+[Group],\
+sum([value]) as [$(file)]\
+resident [$(file)]\
+group by [Group];\
+\
+next file\
+\
+[Final]:\
+Load \
+[Group],\
+ApplyMap('Table_Jan_18',Group,Null()) as Jan_18,\
+ApplyMap('Table_Feb_18',Group,Null()) as Feb_18\
+Resident Groups}
